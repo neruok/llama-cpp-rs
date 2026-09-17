@@ -96,8 +96,10 @@ llama_rs_status llama_rs_mtp_speculative_accept(
 struct llama_rs_chat_template;
 
 // Initialize a chat template. A non-empty `tmpl` is used as a literal Jinja
-// template; when `tmpl` is NULL or empty the template embedded in `model` is
-// used, which requires `model` to be non-NULL. Returns NULL on failure.
+// template; when `tmpl` is NULL or empty the default template embedded in
+// `model` is used. That requires `model` to be non-NULL and to carry a non-empty
+// embedded default template; no built-in fallback template is substituted.
+// Returns NULL on failure.
 struct llama_rs_chat_template * llama_rs_chat_template_init(
     const struct llama_model * model,
     const char * tmpl);

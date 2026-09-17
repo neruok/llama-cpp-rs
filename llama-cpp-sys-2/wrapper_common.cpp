@@ -54,11 +54,18 @@ extern "C" struct llama_rs_chat_template * llama_rs_chat_template_init(
         const std::string tmpl_override = tmpl ? tmpl : "";
         if (tmpl_override.empty()) {
             // Without an explicit template the model must embed a default one.
-            // common_chat_templates_init silently substitutes a built-in ChatML
-            // template when the embedded template is absent or empty, so check
-            // the embedded source first and reject the model instead.
-            const char * embedded = model ? llama_model_chat_template(model, nullptr) : nullptr;
-            if (!embedded || embedded[0] == '\0') {
+            // llama_model_chat_template cannot decide this: for a 40-layer
+            // TEKKEN model it synthesizes "mistral-v7-tekken" even when the
+            // model embeds no template, and common_chat_templates_init
+            // substitutes a built-in ChatML template for an absent or empty
+            // one. Read the raw metadata instead. The getter returns -1 when
+            // the key is absent and the value length when it is present, so
+            // both a missing and an empty template are rejected.
+            char probe = '\0';
+            const int32_t meta_len = model
+                ? llama_model_meta_val_str(model, "tokenizer.chat_template", &probe, sizeof(probe))
+                : -1;
+            if (meta_len <= 0) {
                 return nullptr;
             }
         }

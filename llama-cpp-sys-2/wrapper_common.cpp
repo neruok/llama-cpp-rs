@@ -52,8 +52,15 @@ extern "C" struct llama_rs_chat_template * llama_rs_chat_template_init(
     const char * tmpl) {
     try {
         const std::string tmpl_override = tmpl ? tmpl : "";
-        if (!model && tmpl_override.empty()) {
-            return nullptr;
+        if (tmpl_override.empty()) {
+            // Without an explicit template the model must embed a default one.
+            // common_chat_templates_init silently substitutes a built-in ChatML
+            // template when the embedded template is absent or empty, so check
+            // the embedded source first and reject the model instead.
+            const char * embedded = model ? llama_model_chat_template(model, nullptr) : nullptr;
+            if (!embedded || embedded[0] == '\0') {
+                return nullptr;
+            }
         }
         common_chat_templates_ptr tmpls = common_chat_templates_init(model, tmpl_override);
         if (!tmpls) {

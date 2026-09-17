@@ -98,8 +98,8 @@ struct llama_rs_chat_template;
 // Initialize a chat template. A non-empty `tmpl` is used as a literal Jinja
 // template; when `tmpl` is NULL or empty the default template embedded in
 // `model` is used. That requires `model` to be non-NULL and to carry a non-empty
-// embedded default template; no built-in fallback template is substituted.
-// Returns NULL on failure.
+// `tokenizer.chat_template` metadata value; no built-in fallback template is
+// substituted. Returns NULL on failure.
 struct llama_rs_chat_template * llama_rs_chat_template_init(
     const struct llama_model * model,
     const char * tmpl);

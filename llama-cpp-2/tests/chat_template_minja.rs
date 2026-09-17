@@ -42,23 +42,28 @@ fn template() -> LlamaMinjaChatTemplate {
 }
 
 /// A vocab-only GGUF checked into the llama.cpp submodule. It carries no
-/// `chat_template` metadata, which is the case that must be rejected instead of
-/// letting llama.cpp substitute its built-in ChatML template.
+/// `tokenizer.chat_template` metadata, which is the case that must be rejected
+/// instead of letting llama.cpp substitute its built-in ChatML template.
 const VOCAB_ONLY_MODEL: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../llama-cpp-sys-2/llama.cpp/models/ggml-vocab-llama-spm.gguf"
 );
 
+/// Loads [`VOCAB_ONLY_MODEL`], or `None` when the submodule fixture is absent.
+///
+/// A missing fixture skips the test, but a backend or load failure panics: a
+/// silently skipped load would pass the test without exercising the guard.
 fn vocab_only_model() -> Option<(&'static LlamaBackend, &'static LlamaModel)> {
     static MODEL: OnceLock<Option<(LlamaBackend, LlamaModel)>> = OnceLock::new();
+    if !Path::new(VOCAB_ONLY_MODEL).exists() {
+        return None;
+    }
     MODEL
         .get_or_init(|| {
-            if !Path::new(VOCAB_ONLY_MODEL).exists() {
-                return None;
-            }
-            let backend = LlamaBackend::init().ok()?;
+            let backend = LlamaBackend::init().expect("backend should initialize");
             let params = LlamaModelParams::default().with_vocab_only(true);
-            let model = LlamaModel::load_from_file(&backend, VOCAB_ONLY_MODEL, &params).ok()?;
+            let model = LlamaModel::load_from_file(&backend, VOCAB_ONLY_MODEL, &params)
+                .expect("vocab-only fixture should load");
             Some((backend, model))
         })
         .as_ref()
@@ -70,6 +75,14 @@ fn model_without_embedded_template_is_rejected() {
     let Some((_backend, model)) = vocab_only_model() else {
         return;
     };
+
+    // The guard reads the raw metadata rather than llama_model_chat_template,
+    // which synthesizes a template for some template-less models. Establish
+    // that the fixture really has no metadata value to embed.
+    assert!(
+        model.meta_val_str("tokenizer.chat_template").is_err(),
+        "fixture unexpectedly embeds a chat template"
+    );
 
     assert_eq!(
         LlamaMinjaChatTemplate::from_model(model).expect_err("model has no embedded template"),

@@ -92,6 +92,16 @@ impl LlamaChatMessage {
             content: CString::new(content)?,
         })
     }
+
+    /// Pointer to the null-terminated role, for use by the FFI wrappers in this crate.
+    pub(crate) fn role_ptr(&self) -> *const c_char {
+        self.role.as_ptr()
+    }
+
+    /// Pointer to the null-terminated content, for use by the FFI wrappers in this crate.
+    pub(crate) fn content_ptr(&self) -> *const c_char {
+        self.content.as_ptr()
+    }
 }
 
 /// The Rope type that's used within the model.

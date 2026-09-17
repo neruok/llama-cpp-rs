@@ -24,6 +24,8 @@ use std::os::raw::c_int;
 use std::path::PathBuf;
 use std::string::FromUtf8Error;
 
+#[cfg(feature = "common")]
+pub mod chat;
 pub mod context;
 pub mod gguf;
 pub mod llama_backend;

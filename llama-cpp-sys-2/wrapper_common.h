@@ -92,6 +92,29 @@ llama_rs_status llama_rs_mtp_speculative_accept(
     struct llama_rs_mtp_speculative * spec,
     uint16_t n_accepted);
 
+// Opaque handle for llama.cpp's common chat template engine (Minja).
+struct llama_rs_chat_template;
+
+// Initialize a chat template. A non-empty `tmpl` is used as a literal Jinja
+// template; when `tmpl` is NULL or empty the template embedded in `model` is
+// used, which requires `model` to be non-NULL. Returns NULL on failure.
+struct llama_rs_chat_template * llama_rs_chat_template_init(
+    const struct llama_model * model,
+    const char * tmpl);
+
+// Release a handle returned by llama_rs_chat_template_init. NULL is ignored.
+void llama_rs_chat_template_free(struct llama_rs_chat_template * tmpls);
+
+// Render `messages` with `tmpls` using the Minja engine and store the prompt in
+// `*out_prompt` (release it with llama_rs_string_free).
+llama_rs_status llama_rs_chat_template_apply(
+    const struct llama_rs_chat_template * tmpls,
+    const struct llama_chat_message * messages,
+    size_t n_messages,
+    bool add_generation_prompt,
+    bool enable_thinking,
+    char ** out_prompt);
+
 void llama_rs_string_free(char * ptr);
 
 #ifdef __cplusplus

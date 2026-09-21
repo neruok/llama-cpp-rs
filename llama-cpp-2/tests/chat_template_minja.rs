@@ -100,6 +100,66 @@ fn empty_template_without_model_is_rejected() {
     );
 }
 
+/// A literal template that reads a variable supplied through
+/// `chat_template_kwargs` and compares a second one by value.
+const KWARG_TEMPLATE: &str = concat!(
+    "{% if reasoning_effort is defined %}",
+    "[{{ reasoning_effort }}]",
+    "{% else %}",
+    "[default]",
+    "{% endif %}",
+    "{% if effort == \"low\" %}<low>{% endif %}",
+);
+
+fn kwarg_template() -> LlamaMinjaChatTemplate {
+    let literal = LlamaChatTemplate::new(KWARG_TEMPLATE).expect("template has no null byte");
+    LlamaMinjaChatTemplate::new(&literal).expect("template is valid jinja")
+}
+
+/// AC-LC-1 and AC-LC-3: a keyword reaches the template, and its value is
+/// decoded as JSON rather than inserted as raw text.
+#[test]
+fn forwards_chat_template_kwargs() {
+    let template = kwarg_template();
+
+    let prompt = template
+        .render_with_kwargs(
+            &messages(),
+            false,
+            true,
+            &[("reasoning_effort", "\"max\""), ("effort", "\"low\"")],
+        )
+        .expect("rendering should succeed");
+
+    assert_eq!(prompt, "[max]<low>");
+}
+
+/// AC-LC-2: an omitted keyword leaves the template's own default in place.
+#[test]
+fn omits_absent_chat_template_kwargs() {
+    let template = kwarg_template();
+
+    let prompt = template
+        .render_with_kwargs(&messages(), false, true, &[])
+        .expect("rendering should succeed");
+
+    assert_eq!(prompt, "[default]");
+}
+
+/// AC-LC-3: a value that is not valid JSON is rejected instead of being
+/// inserted as raw text.
+#[test]
+fn rejects_a_chat_template_kwarg_that_is_not_json() {
+    let template = kwarg_template();
+
+    let result = template.render_with_kwargs(&messages(), false, true, &[("effort", "low")]);
+
+    assert!(
+        result.is_err(),
+        "a bare string is not a JSON value: {result:?}"
+    );
+}
+
 #[test]
 fn renders_loop_and_generation_prompt() {
     let template = template();

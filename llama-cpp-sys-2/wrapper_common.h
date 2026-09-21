@@ -109,12 +109,20 @@ void llama_rs_chat_template_free(struct llama_rs_chat_template * tmpls);
 
 // Render `messages` with `tmpls` using the Minja engine and store the prompt in
 // `*out_prompt` (release it with llama_rs_string_free).
+//
+// `kwarg_keys` and `kwarg_values` carry `n_kwargs` template variable names and
+// their JSON-encoded values, forwarded to the template as llama.cpp's
+// `chat_template_kwargs`. Both arrays must be non-NULL when `n_kwargs` is
+// greater than zero. A value that is not valid JSON fails the call.
 llama_rs_status llama_rs_chat_template_apply(
     const struct llama_rs_chat_template * tmpls,
     const struct llama_chat_message * messages,
     size_t n_messages,
     bool add_generation_prompt,
     bool enable_thinking,
+    const char * const * kwarg_keys,
+    const char * const * kwarg_values,
+    size_t n_kwargs,
     char ** out_prompt);
 
 void llama_rs_string_free(char * ptr);

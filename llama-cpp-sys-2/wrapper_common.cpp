@@ -93,8 +93,12 @@ extern "C" llama_rs_status llama_rs_chat_template_apply(
     size_t n_messages,
     bool add_generation_prompt,
     bool enable_thinking,
+    const char * const * kwarg_keys,
+    const char * const * kwarg_values,
+    size_t n_kwargs,
     char ** out_prompt) {
-    if (!tmpls || !tmpls->tmpls || !out_prompt || (!messages && n_messages > 0)) {
+    if (!tmpls || !tmpls->tmpls || !out_prompt || (!messages && n_messages > 0) ||
+        (n_kwargs > 0 && (!kwarg_keys || !kwarg_values))) {
         return LLAMA_RS_STATUS_INVALID_ARGUMENT;
     }
 
@@ -113,6 +117,16 @@ extern "C" llama_rs_status llama_rs_chat_template_apply(
             msg.role    = messages[i].role;
             msg.content = messages[i].content;
             inputs.messages.push_back(std::move(msg));
+        }
+
+        // llama.cpp stores each value as JSON text and decodes it into the
+        // template's variable set, so the caller supplies `"high"` for the
+        // string high. A name that is absent leaves the template default.
+        for (size_t i = 0; i < n_kwargs; ++i) {
+            if (!kwarg_keys[i] || !kwarg_values[i]) {
+                return LLAMA_RS_STATUS_INVALID_ARGUMENT;
+            }
+            inputs.chat_template_kwargs[kwarg_keys[i]] = kwarg_values[i];
         }
 
         const common_chat_params params = common_chat_templates_apply(tmpls->tmpls.get(), inputs);

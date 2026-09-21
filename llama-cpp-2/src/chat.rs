@@ -8,7 +8,8 @@
 //!
 //! This module requires the `common` feature.
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 use std::ptr::{self, NonNull};
 
 use crate::model::{LlamaChatMessage, LlamaChatTemplate, LlamaModel};
@@ -60,7 +61,7 @@ impl LlamaMinjaChatTemplate {
             .ok_or(MinjaChatTemplateError::InitFailed)
     }
 
-    /// Render `messages` into a prompt.
+    /// Render `messages` into a prompt, with no extra template variables.
     ///
     /// `enable_thinking` is forwarded to the template as its
     /// `enable_thinking` variable and is ignored by templates that do not use
@@ -75,6 +76,29 @@ impl LlamaMinjaChatTemplate {
         add_generation_prompt: bool,
         enable_thinking: bool,
     ) -> Result<String, MinjaChatTemplateError> {
+        self.render_with_kwargs(messages, add_generation_prompt, enable_thinking, &[])
+    }
+
+    /// Render `messages` into a prompt, forwarding `kwargs` to the template as
+    /// llama.cpp's `chat_template_kwargs`.
+    ///
+    /// Each value is JSON text, which is the type llama.cpp stores, so a
+    /// caller passes `("reasoning_effort", "\"high\"")` for the string
+    /// `high`. A template that does not read a key ignores it, and an absent
+    /// key leaves the template's own default in place.
+    ///
+    /// # Errors
+    ///
+    /// [`MinjaChatTemplateError::NulByte`] when a name or a value contains an
+    /// interior null byte, and otherwise as for
+    /// [`LlamaMinjaChatTemplate::render`].
+    pub fn render_with_kwargs(
+        &self,
+        messages: &[LlamaChatMessage],
+        add_generation_prompt: bool,
+        enable_thinking: bool,
+        kwargs: &[(&str, &str)],
+    ) -> Result<String, MinjaChatTemplateError> {
         let messages: Vec<llama_cpp_sys_2::llama_chat_message> = messages
             .iter()
             .map(|message| llama_cpp_sys_2::llama_chat_message {
@@ -83,7 +107,18 @@ impl LlamaMinjaChatTemplate {
             })
             .collect();
 
-        let mut out_prompt: *mut std::ffi::c_char = ptr::null_mut();
+        let keys: Vec<CString> = kwargs
+            .iter()
+            .map(|(key, _)| CString::new(*key))
+            .collect::<Result<_, _>>()?;
+        let values: Vec<CString> = kwargs
+            .iter()
+            .map(|(_, value)| CString::new(*value))
+            .collect::<Result<_, _>>()?;
+        let key_ptrs: Vec<*const c_char> = keys.iter().map(|key| key.as_ptr()).collect();
+        let value_ptrs: Vec<*const c_char> = values.iter().map(|value| value.as_ptr()).collect();
+
+        let mut out_prompt: *mut c_char = ptr::null_mut();
         let status = unsafe {
             llama_cpp_sys_2::llama_rs_chat_template_apply(
                 self.templates.as_ptr(),
@@ -91,6 +126,9 @@ impl LlamaMinjaChatTemplate {
                 messages.len(),
                 add_generation_prompt,
                 enable_thinking,
+                key_ptrs.as_ptr(),
+                value_ptrs.as_ptr(),
+                key_ptrs.len(),
                 ptr::from_mut(&mut out_prompt),
             )
         };
@@ -125,4 +163,7 @@ pub enum MinjaChatTemplateError {
     /// The rendered prompt was not valid utf8.
     #[error("{0}")]
     FromUtf8Error(#[from] std::string::FromUtf8Error),
+    /// A keyword name or value contained an interior null byte.
+    #[error("chat template keyword contained a null byte")]
+    NulByte(#[from] std::ffi::NulError),
 }

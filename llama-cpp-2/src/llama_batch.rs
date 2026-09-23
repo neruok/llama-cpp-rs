@@ -29,6 +29,16 @@ pub enum BatchAddError {
 }
 
 impl<'a> LlamaBatch<'a> {
+    /// Return a pointer to the raw `llama_batch`.
+    ///
+    /// The pointer stays valid for as long as the batch is alive. The caller
+    /// must not free it. This is intended for FFI wrappers that live outside
+    /// this crate.
+    #[must_use]
+    pub fn as_ptr(&self) -> *const llama_cpp_sys_2::llama_batch {
+        std::ptr::from_ref(&self.llama_batch)
+    }
+
     /// Clear the batch. This does not free the memory associated with the batch, but it does reset
     /// the number of tokens to 0.
     pub fn clear(&mut self) {

@@ -91,6 +91,22 @@ impl LlamaChatMessage {
             content: CString::new(content)?,
         })
     }
+
+    /// Pointer to the null-terminated role, for use by FFI wrappers.
+    ///
+    /// The pointer stays valid for as long as the message is alive.
+    #[must_use]
+    pub fn role_ptr(&self) -> *const c_char {
+        self.role.as_ptr()
+    }
+
+    /// Pointer to the null-terminated content, for use by FFI wrappers.
+    ///
+    /// The pointer stays valid for as long as the message is alive.
+    #[must_use]
+    pub fn content_ptr(&self) -> *const c_char {
+        self.content.as_ptr()
+    }
 }
 
 /// The Rope type that's used within the model.
@@ -113,6 +129,16 @@ impl LlamaModel {
     pub fn vocab(&self) -> LlamaVocab<'_> {
         let ptr = unsafe { llama_cpp_sys_2::llama_model_get_vocab(self.model.as_ptr()) };
         LlamaVocab::new(ptr).expect("model must have vocabulary")
+    }
+
+    /// Return the raw `llama_model` pointer.
+    ///
+    /// The pointer stays valid for as long as the model is alive. The caller
+    /// must not free it. This is intended for FFI wrappers that live outside
+    /// this crate.
+    #[must_use]
+    pub fn as_ptr(&self) -> *mut llama_cpp_sys_2::llama_model {
+        self.model.as_ptr()
     }
 
     /// get the number of tokens the model was trained on

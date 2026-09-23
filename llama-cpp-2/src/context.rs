@@ -42,6 +42,16 @@ impl Debug for LlamaContext<'_> {
 }
 
 impl<'model> LlamaContext<'model> {
+    /// Return the raw `llama_context` pointer.
+    ///
+    /// The pointer stays valid for as long as the context is alive. The caller
+    /// must not free it. This is intended for FFI wrappers that live outside
+    /// this crate.
+    #[must_use]
+    pub fn as_ptr(&self) -> *mut llama_cpp_sys_2::llama_context {
+        self.context.as_ptr()
+    }
+
     pub(crate) fn new(
         llama_model: &'model LlamaModel,
         llama_context: NonNull<llama_cpp_sys_2::llama_context>,

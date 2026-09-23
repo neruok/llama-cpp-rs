@@ -1093,6 +1093,24 @@ fn main() {
         }
     }
 
+    // Tell direct dependents where the llama.cpp source tree is and which
+    // revision it is pinned to, so a crate that builds its own bindings can use
+    // the same llama.cpp. Cargo exposes these as DEP_LLAMA_LLAMA_CPP_SOURCE and
+    // DEP_LLAMA_LLAMA_CPP_REV.
+    println!("cargo:llama_cpp_source={}", llama_src.display());
+    let llama_cpp_rev = std::process::Command::new("git")
+        .arg("-C")
+        .arg(&llama_src)
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty())
+        .unwrap_or_else(|| "unknown".to_owned());
+    println!("cargo:llama_cpp_rev={llama_cpp_rev}");
+
     // Search paths
     println!("cargo:rustc-link-search={}", out_dir.join("lib").display());
     println!(

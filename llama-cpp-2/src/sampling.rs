@@ -25,6 +25,16 @@ impl Debug for LlamaSampler {
 }
 
 impl LlamaSampler {
+    /// Return the raw `llama_sampler` pointer.
+    ///
+    /// The pointer stays valid for as long as the sampler is alive. The caller
+    /// must not free it. This is intended for FFI wrappers that live outside
+    /// this crate.
+    #[must_use]
+    pub fn as_ptr(&self) -> *mut llama_cpp_sys_2::llama_sampler {
+        self.sampler
+    }
+
     /// Sample and accept a token from the idx-th output of the last evaluation
     #[must_use]
     pub fn sample(&mut self, ctx: &LlamaContext, idx: i32) -> LlamaToken {

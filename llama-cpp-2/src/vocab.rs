@@ -28,7 +28,13 @@ unsafe impl Send for LlamaVocab<'_> {}
 unsafe impl Sync for LlamaVocab<'_> {}
 
 impl<'model> LlamaVocab<'model> {
-    pub(crate) fn as_ptr(&self) -> *const llama_cpp_sys_2::llama_vocab {
+    /// Return the raw `llama_vocab` pointer.
+    ///
+    /// The vocabulary is owned by the model, so the pointer stays valid for as
+    /// long as the model is alive. The caller must not free it. This is
+    /// intended for FFI wrappers that live outside this crate.
+    #[must_use]
+    pub fn as_ptr(&self) -> *const llama_cpp_sys_2::llama_vocab {
         self.vocab.as_ptr()
     }
 
